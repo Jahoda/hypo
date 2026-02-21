@@ -36,6 +36,14 @@ const currencyFormatter = new Intl.NumberFormat("cs-CZ", {
 const integerFormatter = new Intl.NumberFormat("cs-CZ", {
   maximumFractionDigits: 0,
 });
+const percentFormatter = new Intl.NumberFormat("cs-CZ", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+const decimalFormatterCache = new Map();
+const mortgageIncomeRule = {
+  maxInstallmentShare: 0.45,
+};
 const scenarioStorageKey = "bytulacka.savedScenarios.v1";
 const hashPrefix = "#has=";
 
@@ -45,8 +53,13 @@ const chartPanel = document.querySelector(".chart-panel");
 const chartCanvas = document.getElementById("comparisonChart");
 const chartTooltip = document.getElementById("chartTooltip");
 const stickyMiniChart = document.getElementById("stickyMiniChart");
+const stickyMiniHead = document.getElementById("stickyMiniHead");
 const stickyMiniCanvas = document.getElementById("stickyMiniCanvas");
+const stickyMiniToggleBtn = document.getElementById("stickyMiniToggleBtn");
 const jumpToChartBtn = document.getElementById("jumpToChartBtn");
+const stickyMiniResizeHandles = Array.from(
+  document.querySelectorAll(".sticky-mini-resize[data-resize]"),
+);
 const scenarioTabs = document.getElementById("scenarioTabs");
 const scenarioNameInput = document.getElementById("scenarioNameInput");
 const saveScenarioBtn = document.getElementById("saveScenarioBtn");
@@ -62,6 +75,9 @@ const investmentPresetButtons = Array.from(
 const appreciationPresetButtons = Array.from(
   document.querySelectorAll(".preset-btn[data-appreciation-preset]"),
 );
+const adaptiveTooltipHosts = Array.from(
+  document.querySelectorAll(".preset-help, .form-help"),
+);
 
 const resultElements = {
   monthlyMortgage: document.getElementById("monthlyMortgageResult"),
@@ -70,6 +86,10 @@ const resultElements = {
   difference: document.getElementById("differenceResult"),
   propertyValue: document.getElementById("propertyValueResult"),
   mortgageBalance: document.getElementById("mortgageBalanceResult"),
+  ltv: document.getElementById("ltvResult"),
+  requiredIncomeMonthly: document.getElementById("requiredIncomeMonthlyResult"),
+  requiredIncomeYearly: document.getElementById("requiredIncomeYearlyResult"),
+  requiredIncomeNote: document.getElementById("requiredIncomeNote"),
   interestPaid: document.getElementById("interestPaidResult"),
   breakEven: document.getElementById("breakEvenResult"),
   summary: document.getElementById("summaryText"),
@@ -115,6 +135,21 @@ const stepperState = {
   startedAtMs: 0,
   repeatTimerId: null,
 };
+const stickyMiniState = {
+  mode: null,
+  pointerId: null,
+  resizeDirection: "",
+  startX: 0,
+  startY: 0,
+  startLeft: 0,
+  startTop: 0,
+  startWidth: 0,
+  startPanelHeight: 0,
+  startHeight: 0,
+  customPosition: false,
+  customSize: false,
+  minimized: false,
+};
 
 let lastSimulation = null;
 let pendingAnimationFrame = null;
@@ -144,6 +179,12 @@ function sanitizeFormValues(rawValues) {
     const parsed = parseLooseNumber(rawValue);
     output[id] = Number.isFinite(parsed) ? parsed : defaultValue;
   });
+  output.purchasePrice = Math.max(0, output.purchasePrice);
+  output.downPayment = clamp(
+    Math.max(0, output.downPayment),
+    0,
+    output.purchasePrice,
+  );
   return output;
 }
 
@@ -271,6 +312,7 @@ function applyValuesToForm(values) {
     field.value = String(sanitized[id]);
   });
 
+  applyHousingInputConstraints();
   syncAllRangesFromNumbers();
   formatAllMoneyInputs();
   syncLegendToggleButtons();
@@ -407,10 +449,36 @@ function readNumber(id) {
   return parseLooseNumber(element.value);
 }
 
+function applyHousingInputConstraints() {
+  const purchaseInput = document.getElementById("purchasePrice");
+  const downPaymentInput = document.getElementById("downPayment");
+  const downPaymentSlider = document.getElementById("downPaymentSlider");
+  if (!purchaseInput || !downPaymentInput) return;
+
+  const purchasePrice = Math.max(0, readNumber("purchasePrice"));
+  const downPayment = Math.max(0, readNumber("downPayment"));
+  const clampedDownPayment = clamp(downPayment, 0, purchasePrice);
+
+  if (clampedDownPayment !== downPayment) {
+    downPaymentInput.value = formatMoneyValue(clampedDownPayment);
+  }
+
+  purchaseInput.min = "0";
+  downPaymentInput.max = String(purchasePrice);
+  if (downPaymentSlider) {
+    downPaymentSlider.max = String(purchasePrice);
+  }
+
+  syncRangesForNumberInput("downPayment");
+}
+
 function readInputs() {
+  const purchasePrice = Math.max(0, readNumber("purchasePrice"));
+  const downPayment = clamp(Math.max(0, readNumber("downPayment")), 0, purchasePrice);
+
   return {
-    purchasePrice: Math.max(0, readNumber("purchasePrice")),
-    downPayment: Math.max(0, readNumber("downPayment")),
+    purchasePrice,
+    downPayment,
     mortgageRate: Math.max(0, readNumber("mortgageRate")),
     mortgageYears: Math.max(1, readNumber("mortgageYears")),
     purchaseCostsPct: Math.max(0, readNumber("purchaseCostsPct")),
@@ -573,6 +641,7 @@ function simulate(inputs) {
 
   return {
     inputs,
+    mortgagePrincipal,
     monthlyMortgagePayment,
     purchaseCosts,
     totalInterestPaid,
@@ -592,12 +661,38 @@ function formatSignedCurrency(value) {
   return `${sign}${formatCurrency(value)}`;
 }
 
+function formatPercent(value) {
+  return `${percentFormatter.format(value)} %`;
+}
+
+function getDecimalFormatter(fractionDigits = 1) {
+  const key = Math.max(0, Number.parseInt(fractionDigits, 10) || 0);
+  if (!decimalFormatterCache.has(key)) {
+    decimalFormatterCache.set(
+      key,
+      new Intl.NumberFormat("cs-CZ", {
+        minimumFractionDigits: key,
+        maximumFractionDigits: key,
+      }),
+    );
+  }
+  return decimalFormatterCache.get(key);
+}
+
+function formatDecimal(value, fractionDigits = 1) {
+  return getDecimalFormatter(fractionDigits).format(value);
+}
+
+function formatYearLabel(value) {
+  return Number.isInteger(value) ? integerFormatter.format(value) : formatDecimal(value, 1);
+}
+
 function compactAmount(value) {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} mld`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} mil`;
-  if (abs >= 1_000) return `${(value / 1_000).toFixed(0)} tis`;
-  return value.toFixed(0);
+  if (abs >= 1_000_000_000) return `${formatDecimal(value / 1_000_000_000, 1)} mld`;
+  if (abs >= 1_000_000) return `${formatDecimal(value / 1_000_000, 1)} mil`;
+  if (abs >= 1_000) return `${formatDecimal(value / 1_000, 0)} tis`;
+  return formatDecimal(value, 0);
 }
 
 function formatMoneyValue(value) {
@@ -661,7 +756,13 @@ function findBreakEvenMonth(ownerSeries, renterSeries) {
 }
 
 function updateResults(simulation) {
-  const { inputs, monthlyMortgagePayment, totalInterestPaid, series } = simulation;
+  const {
+    inputs,
+    monthlyMortgagePayment,
+    mortgagePrincipal,
+    totalInterestPaid,
+    series,
+  } = simulation;
   const useReal = inputs.useRealValues;
 
   const ownerSeries = useReal ? series.ownerReal : series.ownerNominal;
@@ -674,12 +775,23 @@ function updateResults(simulation) {
   const propertyFinal = propertySeries[propertySeries.length - 1];
   const mortgageFinal = mortgageSeries[mortgageSeries.length - 1];
   const delta = ownerFinal - renterFinal;
+  const initialLtv =
+    inputs.purchasePrice > 0
+      ? clamp((mortgagePrincipal / inputs.purchasePrice) * 100, 0, 999)
+      : 0;
+  const finalLtv =
+    propertyFinal > 0 ? clamp((mortgageFinal / propertyFinal) * 100, 0, 999) : 0;
+  const requiredIncomeMonthly =
+    mortgagePrincipal > 0
+      ? monthlyMortgagePayment / mortgageIncomeRule.maxInstallmentShare
+      : 0;
+  const requiredIncomeYearly = requiredIncomeMonthly * 12;
 
   const breakEvenMonth = findBreakEvenMonth(ownerSeries, renterSeries);
   const breakEvenText =
     breakEvenMonth === null
       ? "Nedosaženo"
-      : `${(breakEvenMonth / 12).toFixed(1)} roku`;
+      : `${formatDecimal(breakEvenMonth / 12, 1)} roku`;
 
   resultElements.monthlyMortgage.textContent = formatCurrency(
     monthlyMortgagePayment,
@@ -689,6 +801,25 @@ function updateResults(simulation) {
   resultElements.difference.textContent = formatSignedCurrency(delta);
   resultElements.propertyValue.textContent = formatCurrency(propertyFinal);
   resultElements.mortgageBalance.textContent = formatCurrency(mortgageFinal);
+  resultElements.ltv.textContent = `${formatPercent(initialLtv)} / ${formatPercent(finalLtv)}`;
+  if (resultElements.requiredIncomeMonthly) {
+    resultElements.requiredIncomeMonthly.textContent = formatCurrency(
+      requiredIncomeMonthly,
+    );
+  }
+  if (resultElements.requiredIncomeYearly) {
+    resultElements.requiredIncomeYearly.textContent = formatCurrency(
+      requiredIncomeYearly,
+    );
+  }
+  if (resultElements.requiredIncomeNote) {
+    resultElements.requiredIncomeNote.textContent =
+      mortgagePrincipal > 0
+        ? `Orientační výpočet: splátka max ${formatPercent(
+            mortgageIncomeRule.maxInstallmentShare * 100,
+          )} z čistého měsíčního příjmu domácnosti.`
+        : "Hypotéka není potřeba, akontace pokrývá celou cenu bytu.";
+  }
   resultElements.interestPaid.textContent = formatCurrency(totalInterestPaid);
   resultElements.breakEven.textContent = breakEvenText;
 
@@ -696,7 +827,10 @@ function updateResults(simulation) {
   const breakEvenDetail =
     breakEvenMonth === null
       ? "Break-even v daném horizontu nenastal."
-      : `Break-even nastává přibližně za ${(breakEvenMonth / 12).toFixed(1)} roku.`;
+      : `Break-even nastává přibližně za ${formatDecimal(
+          breakEvenMonth / 12,
+          1,
+        )} roku.`;
 
   let summaryClass = "summary-neutral";
   let summaryTitle = "Scénář je prakticky vyrovnaný";
@@ -749,7 +883,7 @@ function updateYearlyTable(simulation) {
     const tr = document.createElement("tr");
 
     const cells = [
-      Number.isInteger(row.year) ? row.year.toString() : row.year.toFixed(1),
+      formatYearLabel(row.year),
       formatCurrency(pick(row.ownerNominal, row.ownerReal, useReal)),
       formatCurrency(pick(row.renterNominal, row.renterReal, useReal)),
       formatCurrency(pick(row.propertyNominal, row.propertyReal, useReal)),
@@ -897,6 +1031,9 @@ function applyStep(button, multiplier = 1) {
     formatMoneyInputElement(targetInput);
   }
 
+  if (targetId === "purchasePrice" || targetId === "downPayment") {
+    applyHousingInputConstraints();
+  }
   syncRangesForNumberInput(targetId);
   scheduleUpdate();
 }
@@ -907,7 +1044,7 @@ function buildChartRows(simulation) {
 
   return yearly.map((row) => ({
     year: row.year,
-    yearLabel: Number.isInteger(row.year) ? `${row.year}` : row.year.toFixed(1),
+    yearLabel: formatYearLabel(row.year),
     owner: pick(row.ownerNominal, row.ownerReal, useReal),
     renter: pick(row.renterNominal, row.renterReal, useReal),
     property: pick(row.propertyNominal, row.propertyReal, useReal),
@@ -1300,21 +1437,300 @@ function hideChartTooltip() {
   chartTooltip.hidden = true;
 }
 
+function getAdaptiveTooltipElement(host) {
+  if (!host) return null;
+  return host.querySelector(".preset-tooltip, .form-tooltip");
+}
+
+function positionAdaptiveTooltip(tooltip) {
+  if (!tooltip) return;
+  const viewportMargin = 8;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  tooltip.classList.remove("is-below");
+  tooltip.style.setProperty("--tip-shift-x", "0px");
+  tooltip.style.setProperty("--tip-shift-y", "0px");
+
+  let rect = tooltip.getBoundingClientRect();
+  if (rect.top < viewportMargin) {
+    tooltip.classList.add("is-below");
+    rect = tooltip.getBoundingClientRect();
+  }
+
+  let shiftX = 0;
+  const maxRight = viewportWidth - viewportMargin;
+  if (rect.left < viewportMargin) {
+    shiftX += viewportMargin - rect.left;
+  }
+  if (rect.right > maxRight) {
+    shiftX -= rect.right - maxRight;
+  }
+  if (Math.abs(shiftX) > 0.5) {
+    tooltip.style.setProperty("--tip-shift-x", `${Math.round(shiftX)}px`);
+    rect = tooltip.getBoundingClientRect();
+  }
+
+  let shiftY = 0;
+  const maxBottom = viewportHeight - viewportMargin;
+  if (rect.top < viewportMargin) {
+    shiftY += viewportMargin - rect.top;
+  }
+  if (rect.bottom > maxBottom) {
+    shiftY -= rect.bottom - maxBottom;
+  }
+  if (Math.abs(shiftY) > 0.5) {
+    tooltip.style.setProperty("--tip-shift-y", `${Math.round(shiftY)}px`);
+  }
+}
+
+function scheduleAdaptiveTooltipPosition(host) {
+  const tooltip = getAdaptiveTooltipElement(host);
+  if (!tooltip) return;
+  requestAnimationFrame(() => {
+    positionAdaptiveTooltip(tooltip);
+  });
+}
+
+function repositionActiveAdaptiveTooltips() {
+  if (!adaptiveTooltipHosts.length) return;
+  adaptiveTooltipHosts.forEach((host) => {
+    if (!(host.matches(":hover") || host.contains(document.activeElement))) return;
+    scheduleAdaptiveTooltipPosition(host);
+  });
+}
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
+function resetStickyMiniInlineLayout() {
+  if (!stickyMiniChart || !stickyMiniCanvas) return;
+  stickyMiniChart.style.left = "";
+  stickyMiniChart.style.top = "";
+  stickyMiniChart.style.right = "";
+  stickyMiniChart.style.bottom = "";
+  stickyMiniChart.style.transform = "";
+  stickyMiniChart.style.width = "";
+  stickyMiniCanvas.style.height = "";
+}
+
+function normalizeStickyMiniLayoutForViewport() {
+  if (!stickyMiniChart || !stickyMiniCanvas) return;
+  if (isMobileViewport()) {
+    stickyMiniState.customPosition = false;
+    stickyMiniState.customSize = false;
+    resetStickyMiniInlineLayout();
+    return;
+  }
+
+  if (!stickyMiniState.customPosition) {
+    stickyMiniChart.style.left = "";
+    stickyMiniChart.style.top = "";
+    stickyMiniChart.style.right = "";
+    stickyMiniChart.style.bottom = "";
+    stickyMiniChart.style.transform = "";
+  }
+  if (!stickyMiniState.customSize) {
+    stickyMiniChart.style.width = "";
+    stickyMiniCanvas.style.height = "";
+  }
+}
+
+function clampStickyMiniCustomPositionToViewport() {
+  if (!stickyMiniChart) return;
+  if (isMobileViewport()) return;
+  if (!stickyMiniState.customPosition) return;
+
+  const viewportMargin = 6;
+  const rect = stickyMiniChart.getBoundingClientRect();
+  const viewportW = window.innerWidth || document.documentElement.clientWidth;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight;
+  const maxLeft = Math.max(viewportMargin, viewportW - rect.width - viewportMargin);
+  const maxTop = Math.max(viewportMargin, viewportH - rect.height - viewportMargin);
+  const nextLeft = clamp(rect.left, viewportMargin, maxLeft);
+  const nextTop = clamp(rect.top, viewportMargin, maxTop);
+
+  if (
+    Math.abs(nextLeft - rect.left) > 0.5 ||
+    Math.abs(nextTop - rect.top) > 0.5
+  ) {
+    stickyMiniChart.style.left = `${Math.round(nextLeft)}px`;
+    stickyMiniChart.style.top = `${Math.round(nextTop)}px`;
+    stickyMiniChart.style.right = "auto";
+    stickyMiniChart.style.bottom = "auto";
+    stickyMiniChart.style.transform = "none";
+  }
+}
+
+function setStickyMiniMinimized(nextMinimized) {
+  if (!stickyMiniChart) return;
+  stickyMiniState.minimized = Boolean(nextMinimized);
+  stickyMiniChart.classList.toggle("is-minimized", stickyMiniState.minimized);
+  if (stickyMiniToggleBtn) {
+    stickyMiniToggleBtn.textContent = stickyMiniState.minimized
+      ? "Rozbalit"
+      : "Minimalizovat";
+    stickyMiniToggleBtn.setAttribute(
+      "aria-pressed",
+      String(stickyMiniState.minimized),
+    );
+  }
+  if (!stickyMiniState.minimized) {
+    renderStickyMiniChartFromMain();
+    clampStickyMiniCustomPositionToViewport();
+    requestAnimationFrame(() => {
+      clampStickyMiniCustomPositionToViewport();
+    });
+  }
+}
+
+function beginStickyMiniInteraction(event, mode, resizeDirection = "") {
+  if (!stickyMiniChart || !stickyMiniCanvas) return;
+  if (isMobileViewport()) return;
+  if (stickyMiniState.minimized && mode !== "drag") return;
+  if (event.button !== 0) return;
+  event.preventDefault();
+
+  const panelRect = stickyMiniChart.getBoundingClientRect();
+  const canvasRect = stickyMiniCanvas.getBoundingClientRect();
+  stickyMiniState.mode = mode;
+  stickyMiniState.resizeDirection = resizeDirection;
+  stickyMiniState.pointerId = event.pointerId;
+  stickyMiniState.startX = event.clientX;
+  stickyMiniState.startY = event.clientY;
+  stickyMiniState.startLeft = panelRect.left;
+  stickyMiniState.startTop = panelRect.top;
+  stickyMiniState.startWidth = panelRect.width;
+  stickyMiniState.startPanelHeight = panelRect.height;
+  stickyMiniState.startHeight = canvasRect.height;
+}
+
+function handleStickyMiniPointerMove(event) {
+  if (!stickyMiniChart || !stickyMiniCanvas) return;
+  if (stickyMiniState.pointerId === null) return;
+  if (event.pointerId !== stickyMiniState.pointerId) return;
+
+  const dx = event.clientX - stickyMiniState.startX;
+  const dy = event.clientY - stickyMiniState.startY;
+  const viewportW = window.innerWidth || document.documentElement.clientWidth;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight;
+
+  if (stickyMiniState.mode === "drag") {
+    const panelRect = stickyMiniChart.getBoundingClientRect();
+    const maxLeft = Math.max(0, viewportW - panelRect.width);
+    const maxTop = Math.max(0, viewportH - panelRect.height);
+    const nextLeft = clamp(stickyMiniState.startLeft + dx, 0, maxLeft);
+    const nextTop = clamp(stickyMiniState.startTop + dy, 0, maxTop);
+
+    stickyMiniChart.style.left = `${nextLeft}px`;
+    stickyMiniChart.style.top = `${nextTop}px`;
+    stickyMiniChart.style.right = "auto";
+    stickyMiniChart.style.bottom = "auto";
+    stickyMiniChart.style.transform = "none";
+    stickyMiniState.customPosition = true;
+    return;
+  }
+
+  if (stickyMiniState.mode === "resize") {
+    const direction = stickyMiniState.resizeDirection || "right";
+    const minWidth = 260;
+    const maxWidth = Math.max(minWidth, viewportW - 8);
+    const minHeight = 84;
+    const chromeHeight = Math.max(
+      0,
+      stickyMiniState.startPanelHeight - stickyMiniState.startHeight,
+    );
+
+    let nextWidth = stickyMiniState.startWidth;
+    let nextLeft = stickyMiniState.startLeft;
+    let nextCanvasHeight = stickyMiniState.startHeight;
+    let nextTop = stickyMiniState.startTop;
+
+    if (direction.includes("right")) {
+      nextWidth = clamp(stickyMiniState.startWidth + dx, minWidth, maxWidth);
+    }
+    if (direction.includes("left")) {
+      nextWidth = clamp(stickyMiniState.startWidth - dx, minWidth, maxWidth);
+      nextLeft = stickyMiniState.startLeft + (stickyMiniState.startWidth - nextWidth);
+    }
+
+    if (direction.includes("top")) {
+      const maxCanvasHeight = Math.max(minHeight, viewportH * 0.62 - chromeHeight);
+      nextCanvasHeight = clamp(
+        stickyMiniState.startHeight - dy,
+        minHeight,
+        maxCanvasHeight,
+      );
+      const nextPanelHeight = chromeHeight + nextCanvasHeight;
+      const maxTop = Math.max(0, viewportH - nextPanelHeight);
+      nextTop = clamp(
+        stickyMiniState.startTop +
+          (stickyMiniState.startPanelHeight - nextPanelHeight),
+        0,
+        maxTop,
+      );
+    } else {
+      const maxTop = Math.max(0, viewportH - stickyMiniState.startPanelHeight);
+      nextTop = clamp(stickyMiniState.startTop, 0, maxTop);
+    }
+
+    const maxLeft = Math.max(0, viewportW - nextWidth);
+    nextLeft = clamp(nextLeft, 0, maxLeft);
+
+    stickyMiniChart.style.left = `${Math.round(nextLeft)}px`;
+    stickyMiniChart.style.top = `${Math.round(nextTop)}px`;
+    stickyMiniChart.style.right = "auto";
+    stickyMiniChart.style.bottom = "auto";
+    stickyMiniChart.style.transform = "none";
+    stickyMiniChart.style.width = `${Math.round(nextWidth)}px`;
+    stickyMiniCanvas.style.height = `${Math.round(nextCanvasHeight)}px`;
+    stickyMiniState.customPosition = true;
+    stickyMiniState.customSize = true;
+    renderStickyMiniChartFromMain();
+  }
+}
+
+function endStickyMiniInteraction(event) {
+  if (stickyMiniState.pointerId === null) return;
+  if (event && typeof event.pointerId === "number") {
+    if (event.pointerId !== stickyMiniState.pointerId) return;
+  }
+  stickyMiniState.mode = null;
+  stickyMiniState.pointerId = null;
+  stickyMiniState.resizeDirection = "";
+}
+
 function shouldShowStickyMiniChart() {
   if (!chartPanel) return false;
   const rect = chartPanel.getBoundingClientRect();
-  return rect.top > window.innerHeight - 8;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const visibleHeight = Math.max(
+    0,
+    Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0),
+  );
+  const visibleRatio = visibleHeight / Math.max(rect.height, 1);
+  const chartIsMostlyHidden = visibleRatio < 0.58;
+  const chartIsBelowTopEdge = rect.bottom > 0 && rect.top > 24;
+  return chartIsBelowTopEdge && chartIsMostlyHidden;
 }
 
 function updateStickyMiniChartVisibility() {
   if (!stickyMiniChart) return;
+  normalizeStickyMiniLayoutForViewport();
   const shouldShow = shouldShowStickyMiniChart() && Boolean(lastSimulation);
   stickyMiniChart.hidden = !shouldShow;
+  if (shouldShow && !stickyMiniState.minimized) {
+    clampStickyMiniCustomPositionToViewport();
+  }
+  if (!shouldShow) {
+    endStickyMiniInteraction();
+  }
 }
 
 function renderStickyMiniChartFromMain() {
   if (!stickyMiniCanvas) return;
-  if (!chartCanvas.width || !chartCanvas.height) return;
+  if (stickyMiniState.minimized) return;
 
   const dpr = window.devicePixelRatio || 1;
   const rect = stickyMiniCanvas.getBoundingClientRect();
@@ -1328,18 +1744,94 @@ function renderStickyMiniChartFromMain() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
-  const pad = 2;
-  ctx.drawImage(
-    chartCanvas,
-    0,
-    0,
-    chartCanvas.width,
-    chartCanvas.height,
-    pad,
-    pad,
-    width - pad * 2,
-    height - pad * 2,
-  );
+  if (!chartState.rows.length || !chartState.datasets.length) return;
+
+  const rows = chartState.rows;
+  const datasets = chartState.datasets;
+  const leftDatasets = datasets.filter((dataset) => dataset.axis !== "right");
+  const rightDatasets = datasets.filter((dataset) => dataset.axis === "right");
+  const hasRightAxis = rightDatasets.length > 0;
+
+  const buildRange = (values, includeZero = false) => {
+    const safeValues = values.length ? values : [0];
+    let min = Math.min(...safeValues);
+    let max = Math.max(...safeValues);
+    if (includeZero) {
+      min = Math.min(0, min);
+      max = Math.max(0, max);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return { min: 0, max: 1 };
+    }
+    if (max - min < 1e-9) {
+      const pad = Math.max(1, Math.abs(max) * 0.1);
+      return { min: min - pad, max: max + pad };
+    }
+    const span = max - min;
+    return { min: min - span * 0.12, max: max + span * 0.12 };
+  };
+
+  const leftValues = rows.flatMap((row) => leftDatasets.map((set) => row[set.key]));
+  const leftRange = buildRange(leftValues, true);
+  const rightValues = hasRightAxis
+    ? rows.flatMap((row) => rightDatasets.map((set) => row[set.key]))
+    : [];
+  const rightRange = buildRange(rightValues, true);
+
+  const margin = { top: 8, right: 8, bottom: 8, left: 8 };
+  const innerWidth = Math.max(1, width - margin.left - margin.right);
+  const innerHeight = Math.max(1, height - margin.top - margin.bottom);
+  const pointCount = rows.length;
+  const mapX = (index) => {
+    if (pointCount <= 1) return margin.left + innerWidth / 2;
+    return margin.left + (index / (pointCount - 1)) * innerWidth;
+  };
+  const mapY = (value, axis = "left") => {
+    const range = axis === "right" ? rightRange : leftRange;
+    return (
+      margin.top + ((range.max - value) / Math.max(1e-9, range.max - range.min)) * innerHeight
+    );
+  };
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(97, 131, 124, 0.22)";
+  ctx.lineWidth = 1;
+  const gridTicks = 3;
+  for (let tick = 0; tick <= gridTicks; tick += 1) {
+    const y = margin.top + (tick / gridTicks) * innerHeight;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(width - margin.right, y);
+    ctx.stroke();
+  }
+
+  if (chartState.hoveredGroupIndex !== null && pointCount > 0) {
+    const hoverIndex = clamp(chartState.hoveredGroupIndex, 0, pointCount - 1);
+    const hoverX = mapX(hoverIndex);
+    ctx.strokeStyle = "rgba(15, 118, 110, 0.38)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(hoverX, margin.top);
+    ctx.lineTo(hoverX, height - margin.bottom);
+    ctx.stroke();
+  }
+
+  datasets.forEach((dataset) => {
+    ctx.strokeStyle = hexToRgba(dataset.color, 0.95);
+    ctx.lineWidth = Math.max(1.3, dataset.lineWidth * 0.7);
+    ctx.setLineDash(dataset.dashed ? [6, 4] : []);
+    ctx.beginPath();
+
+    rows.forEach((row, index) => {
+      const x = mapX(index);
+      const y = mapY(row[dataset.key], dataset.axis);
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
 }
 
 function getHoveredGroupIndex(x, y) {
@@ -1526,6 +2018,7 @@ function applyDefaults() {
     }
   });
 
+  applyHousingInputConstraints();
   syncAllRangesFromNumbers();
   formatAllMoneyInputs();
   syncLegendToggleButtons();
@@ -1605,6 +2098,9 @@ form.addEventListener("input", (event) => {
     const linkedNumber = document.getElementById(target.dataset.syncTarget);
     if (linkedNumber) {
       linkedNumber.value = target.value;
+      if (moneyInputIdSet.has(linkedNumber.id)) {
+        formatMoneyInputElement(linkedNumber);
+      }
     }
   }
 
@@ -1621,6 +2117,14 @@ form.addEventListener("input", (event) => {
   }
   if (target.id === "appreciationRate" || target.id === "appreciationRateSlider") {
     updateAppreciationPresetButtons();
+  }
+  if (
+    target.id === "purchasePrice" ||
+    target.id === "purchasePriceSlider" ||
+    target.id === "downPayment" ||
+    target.id === "downPaymentSlider"
+  ) {
+    applyHousingInputConstraints();
   }
 
   scheduleUpdate();
@@ -1661,6 +2165,17 @@ if (appreciationPresetButtons.length) {
   });
 }
 
+if (adaptiveTooltipHosts.length) {
+  adaptiveTooltipHosts.forEach((host) => {
+    host.addEventListener("mouseenter", () => {
+      scheduleAdaptiveTooltipPosition(host);
+    });
+    host.addEventListener("focusin", () => {
+      scheduleAdaptiveTooltipPosition(host);
+    });
+  });
+}
+
 document.getElementById("resetDefaults").addEventListener("click", () => {
   scenarioState.activeId = null;
   renderScenarioTabs();
@@ -1683,14 +2198,38 @@ if (copyScenarioLinkBtn) {
     copyCurrentLinkWithHash();
   });
 }
+if (stickyMiniToggleBtn) {
+  stickyMiniToggleBtn.addEventListener("click", () => {
+    setStickyMiniMinimized(!stickyMiniState.minimized);
+  });
+}
 if (jumpToChartBtn && chartPanel) {
   jumpToChartBtn.addEventListener("click", () => {
     chartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
+if (stickyMiniHead) {
+  stickyMiniHead.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest("button")) return;
+    beginStickyMiniInteraction(event, "drag");
+  });
+}
+if (stickyMiniResizeHandles.length) {
+  stickyMiniResizeHandles.forEach((handle) => {
+    handle.addEventListener("pointerdown", (event) => {
+      const direction = handle.dataset.resize || "";
+      beginStickyMiniInteraction(event, "resize", direction);
+    });
+  });
+}
 
 chartCanvas.addEventListener("mousemove", updateChartHoverFromEvent);
 chartCanvas.addEventListener("mouseleave", clearChartHover);
+
+window.addEventListener("pointermove", handleStickyMiniPointerMove);
+window.addEventListener("pointerup", endStickyMiniInteraction);
+window.addEventListener("pointercancel", endStickyMiniInteraction);
 
 window.addEventListener("resize", () => {
   if (lastSimulation) {
@@ -1698,12 +2237,22 @@ window.addEventListener("resize", () => {
     renderStickyMiniChartFromMain();
   }
   updateStickyMiniChartVisibility();
+  repositionActiveAdaptiveTooltips();
 });
-window.addEventListener("scroll", updateStickyMiniChartVisibility, { passive: true });
+window.addEventListener(
+  "scroll",
+  () => {
+    updateStickyMiniChartVisibility();
+    repositionActiveAdaptiveTooltips();
+  },
+  { passive: true },
+);
 window.addEventListener("blur", stopStepperHold);
+window.addEventListener("blur", endStickyMiniInteraction);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopStepperHold();
+    endStickyMiniInteraction();
   }
 });
 window.addEventListener("hashchange", () => {
@@ -1726,3 +2275,5 @@ if (!applyHashToFormIfPresent(window.location.hash)) {
 }
 renderScenarioTabs();
 updateFromInputs();
+setStickyMiniMinimized(false);
+updateStickyMiniChartVisibility();

@@ -32,7 +32,7 @@
               <span>Byt a hypotéka</span>
             </h2>
             <div class="field-grid">
-              <label>
+              <label class="slider-field">
                 Cena bytu (Kč)
                 <div class="stepper">
                   <button
@@ -41,7 +41,7 @@
                     data-step-target="purchasePrice"
                     data-step-amount="-100000"
                   >
-                    -
+                    &minus;
                   </button>
                   <input
                     id="purchasePrice"
@@ -60,9 +60,17 @@
                     +
                   </button>
                 </div>
+                <input
+                  id="purchasePriceSlider"
+                  type="range"
+                  step="50000"
+                  min="0"
+                  max="30000000"
+                  data-sync-target="purchasePrice"
+                />
               </label>
 
-              <label>
+              <label class="slider-field">
                 Vlastní kapitál (Kč)
                 <div class="stepper">
                   <button
@@ -71,7 +79,7 @@
                     data-step-target="downPayment"
                     data-step-amount="-50000"
                   >
-                    -
+                    &minus;
                   </button>
                   <input
                     id="downPayment"
@@ -90,6 +98,14 @@
                     +
                   </button>
                 </div>
+                <input
+                  id="downPaymentSlider"
+                  type="range"
+                  step="50000"
+                  min="0"
+                  max="30000000"
+                  data-sync-target="downPayment"
+                />
               </label>
 
               <label class="slider-field">
@@ -282,7 +298,7 @@
                         data-step-target="hoaMonthly"
                         data-step-amount="-500"
                       >
-                        -
+                        &minus;
                       </button>
                       <input
                         id="hoaMonthly"
@@ -333,7 +349,7 @@
                         data-step-target="ownerInsuranceMonthly"
                         data-step-amount="-100"
                       >
-                        -
+                        &minus;
                       </button>
                       <input
                         id="ownerInsuranceMonthly"
@@ -377,7 +393,7 @@
                     data-step-target="rentMonthly"
                     data-step-amount="-500"
                   >
-                    -
+                    &minus;
                   </button>
                   <input
                     id="rentMonthly"
@@ -573,7 +589,7 @@
                         data-step-target="renterInsuranceMonthly"
                         data-step-amount="-100"
                       >
-                        -
+                        &minus;
                       </button>
                       <input
                         id="renterInsuranceMonthly"
@@ -603,7 +619,7 @@
                         data-step-target="extraInitialInvestment"
                         data-step-amount="-50000"
                       >
-                        -
+                        &minus;
                       </button>
                       <input
                         id="extraInitialInvestment"
@@ -633,7 +649,7 @@
                         data-step-target="manualMonthlyInvestment"
                         data-step-amount="-500"
                       >
-                        -
+                        &minus;
                       </button>
                       <input
                         id="manualMonthlyInvestment"
@@ -747,7 +763,7 @@
                 <strong id="renterNetWorthResult">-</strong>
               </article>
               <article class="metric-card">
-                <span>Rozdíl (koupě - nájem)</span>
+                <span>Rozdíl (koupě &minus; nájem)</span>
                 <strong id="differenceResult">-</strong>
               </article>
               <article class="metric-card series-property">
@@ -758,6 +774,10 @@
                 <span>Zůstatek hypotéky na konci</span>
                 <strong id="mortgageBalanceResult">-</strong>
               </article>
+              <article class="metric-card series-mortgage">
+                <span>LTV (start / konec)</span>
+                <strong id="ltvResult">-</strong>
+              </article>
               <article class="metric-card">
                 <span>Zaplacené úroky celkem</span>
                 <strong id="interestPaidResult">-</strong>
@@ -766,6 +786,25 @@
                 <span>Break-even</span>
                 <strong id="breakEvenResult">-</strong>
               </article>
+            </div>
+            <div class="income-info-box" aria-live="polite">
+              <div class="income-info-title">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zm3 0v2h12V7zm2 6h5v2H8z" />
+                </svg>
+                <span>Dosažitelnost hypotéky</span>
+              </div>
+              <p id="requiredIncomeNote" class="income-info-note"></p>
+              <div class="income-info-values">
+                <article>
+                  <span>Potřebný čistý příjem / měsíc</span>
+                  <strong id="requiredIncomeMonthlyResult">-</strong>
+                </article>
+                <article>
+                  <span>Potřebný čistý příjem / rok</span>
+                  <strong id="requiredIncomeYearlyResult">-</strong>
+                </article>
+              </div>
             </div>
             <div id="summaryText" class="summary-text" aria-live="polite"></div>
           </section>
@@ -940,13 +979,53 @@
     </main>
 
     <aside id="stickyMiniChart" class="sticky-mini-chart" hidden>
-      <div class="sticky-mini-head">
+      <div id="stickyMiniHead" class="sticky-mini-head">
         <span>Živý náhled grafu</span>
-        <button id="jumpToChartBtn" type="button" class="sticky-mini-btn">
-          Otevřít velký graf
-        </button>
+        <div class="sticky-mini-actions">
+          <button
+            id="stickyMiniToggleBtn"
+            type="button"
+            class="sticky-mini-btn secondary"
+            aria-pressed="false"
+          >
+            Minimalizovat
+          </button>
+          <button id="jumpToChartBtn" type="button" class="sticky-mini-btn">
+            Otevřít velký graf
+          </button>
+        </div>
       </div>
       <canvas id="stickyMiniCanvas" height="132" aria-hidden="true"></canvas>
+      <button
+        class="sticky-mini-resize"
+        data-resize="top"
+        type="button"
+        aria-label="Změnit velikost náhledu grafu shora"
+      ></button>
+      <button
+        class="sticky-mini-resize"
+        data-resize="left"
+        type="button"
+        aria-label="Změnit velikost náhledu grafu zleva"
+      ></button>
+      <button
+        class="sticky-mini-resize"
+        data-resize="right"
+        type="button"
+        aria-label="Změnit velikost náhledu grafu zprava"
+      ></button>
+      <button
+        class="sticky-mini-resize"
+        data-resize="top-left"
+        type="button"
+        aria-label="Změnit velikost náhledu grafu vlevo nahoře"
+      ></button>
+      <button
+        class="sticky-mini-resize"
+        data-resize="top-right"
+        type="button"
+        aria-label="Změnit velikost náhledu grafu vpravo nahoře"
+      ></button>
     </aside>
 
     <script src="./app.js"></script>

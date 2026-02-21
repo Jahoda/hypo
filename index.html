@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kalkulačka bytu: hypotéka vs. pronájem</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="background-glow background-glow-a"></div>
+    <div class="background-glow background-glow-b"></div>
+
+    <main class="container">
+      <header class="hero panel">
+        <p class="eyebrow">Financování bytu</p>
+        <h1>Kalkulačka: hypotéka vs. pronájem + investování</h1>
+        <p>
+          Nastav si vlastní scénář, porovnej čisté jmění a podívej se, jak se
+          vyvíjí hodnota bytu, portfolio a zůstatek hypotéky v čase.
+        </p>
+      </header>
+
+      <section class="layout">
+        <form id="calculatorForm" class="panel">
+          <div class="group">
+            <h2 class="title-row">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3 10.2 12 3l9 7.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-4.8v-6.6h-5.4V21H4.5A1.5 1.5 0 0 1 3 19.5z"
+                />
+              </svg>
+              <span>Byt a hypotéka</span>
+            </h2>
+            <div class="field-grid">
+              <label>
+                Cena bytu (Kč)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="purchasePrice"
+                    data-step-amount="-100000"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="purchasePrice"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="10000"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="purchasePrice"
+                    data-step-amount="100000"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label>
+                Vlastní kapitál (Kč)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="downPayment"
+                    data-step-amount="-50000"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="downPayment"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="10000"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="downPayment"
+                    data-step-amount="50000"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Úrok hypotéky (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="mortgageRate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="12"
+                  />
+                  <input
+                    id="mortgageRateSlider"
+                    type="range"
+                    step="0.01"
+                    min="0"
+                    max="12"
+                    data-sync-target="mortgageRate"
+                  />
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Doba hypotéky (roky)
+                <div class="slider-input-row">
+                  <input
+                    id="mortgageYears"
+                    type="number"
+                    step="1"
+                    min="5"
+                    max="40"
+                  />
+                  <input
+                    id="mortgageYearsSlider"
+                    type="range"
+                    step="1"
+                    min="5"
+                    max="40"
+                    data-sync-target="mortgageYears"
+                  />
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Jednorázové pořizovací náklady (% z ceny)
+                <div class="slider-input-row">
+                  <input
+                    id="purchaseCostsPct"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                  />
+                  <input
+                    id="purchaseCostsPctSlider"
+                    type="range"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    data-sync-target="purchaseCostsPct"
+                  />
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Růst ceny bytu (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="appreciationRate"
+                    type="number"
+                    step="0.1"
+                    min="-20"
+                    max="20"
+                  />
+                  <input
+                    id="appreciationRateSlider"
+                    type="range"
+                    step="0.1"
+                    min="-20"
+                    max="20"
+                    data-sync-target="appreciationRate"
+                  />
+                </div>
+                <div class="preset-row" aria-label="Presety růstu ceny bytu">
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-appreciation-preset="0"
+                      aria-describedby="appreciationPresetFlat"
+                    >
+                      Stagnace
+                    </button>
+                    <span
+                      id="appreciationPresetFlat"
+                      class="preset-tooltip"
+                      role="tooltip"
+                    >
+                      Konzervativní scénář: nominální cena bytu dlouhodobě neroste
+                      ani neklesá (0 % p.a.).
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-appreciation-preset="2"
+                      aria-describedby="appreciationPresetInflation"
+                    >
+                      Inflace
+                    </button>
+                    <span
+                      id="appreciationPresetInflation"
+                      class="preset-tooltip"
+                      role="tooltip"
+                    >
+                      Byt přibližně drží krok s dlouhodobou inflací. Proto
+                      orientačně 2 % p.a.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-appreciation-preset="3"
+                      aria-describedby="appreciationPresetBase"
+                    >
+                      Dlouhodobý průměr
+                    </button>
+                    <span
+                      id="appreciationPresetBase"
+                      class="preset-tooltip"
+                      role="tooltip"
+                    >
+                      Střední scénář pro delší horizont: zhruba 3 % p.a. nominálně.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-appreciation-preset="5"
+                      aria-describedby="appreciationPresetStrong"
+                    >
+                      Silný trh
+                    </button>
+                    <span
+                      id="appreciationPresetStrong"
+                      class="preset-tooltip"
+                      role="tooltip"
+                    >
+                      Optimističtější scénář pro atraktivní lokality: přibližně
+                      5 % p.a. nominálně.
+                    </span>
+                  </span>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Údržba bytu (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="maintenancePct"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="8"
+                  />
+                  <input
+                    id="maintenancePctSlider"
+                    type="range"
+                    step="0.1"
+                    min="0"
+                    max="8"
+                    data-sync-target="maintenancePct"
+                  />
+                </div>
+              </label>
+
+              <label>
+                Měsíční fond/služby SVJ (Kč)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="hoaMonthly"
+                    data-step-amount="-500"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="hoaMonthly"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="100"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="hoaMonthly"
+                    data-step-amount="500"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Daň z nemovitosti (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="propertyTaxPct"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1.5"
+                  />
+                  <input
+                    id="propertyTaxPctSlider"
+                    type="range"
+                    step="0.01"
+                    min="0"
+                    max="1.5"
+                    data-sync-target="propertyTaxPct"
+                  />
+                </div>
+              </label>
+
+              <label>
+                Pojištění nemovitosti (Kč / měsíc)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="ownerInsuranceMonthly"
+                    data-step-amount="-100"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="ownerInsuranceMonthly"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="100"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="ownerInsuranceMonthly"
+                    data-step-amount="100"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="group">
+            <h2 class="title-row">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5zm2.5 0v1.2h13V7.5zM6.2 14.8h3.2v1.6H6.2z"
+                />
+              </svg>
+              <span>Pronájem a investování</span>
+            </h2>
+            <div class="field-grid">
+              <label>
+                Nájemné dnes (Kč / měsíc)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="rentMonthly"
+                    data-step-amount="-500"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="rentMonthly"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="100"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="rentMonthly"
+                    data-step-amount="500"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Růst nájemného (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="rentGrowthRate"
+                    type="number"
+                    step="0.1"
+                    min="-20"
+                    max="20"
+                  />
+                  <input
+                    id="rentGrowthRateSlider"
+                    type="range"
+                    step="0.1"
+                    min="-20"
+                    max="20"
+                    data-sync-target="rentGrowthRate"
+                  />
+                </div>
+              </label>
+
+              <label>
+                Pojištění nájemníka (Kč / měsíc)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="renterInsuranceMonthly"
+                    data-step-amount="-100"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="renterInsuranceMonthly"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="100"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="renterInsuranceMonthly"
+                    data-step-amount="100"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Výnos investice (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="investmentReturnRate"
+                    type="number"
+                    step="0.1"
+                    min="-50"
+                    max="30"
+                  />
+                  <input
+                    id="investmentReturnRateSlider"
+                    type="range"
+                    step="0.1"
+                    min="-50"
+                    max="30"
+                    data-sync-target="investmentReturnRate"
+                  />
+                </div>
+                <div class="preset-row" aria-label="Presety výnosu investic">
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-investment-preset="10"
+                      aria-describedby="presetTooltipSp500"
+                    >
+                      S&amp;P 500
+                    </button>
+                    <span id="presetTooltipSp500" class="preset-tooltip" role="tooltip">
+                      Index 500 největších amerických firem. Dlouhodobý nominální
+                      annualizovaný výnos bývá kolem 9-11 % p.a., proto preset 10 %.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-investment-preset="8"
+                      aria-describedby="presetTooltipMsci"
+                    >
+                      MSCI World
+                    </button>
+                    <span id="presetTooltipMsci" class="preset-tooltip" role="tooltip">
+                      Globální akciový index rozvinutých trhů. Typicky se používá
+                      orientačně 7-9 % p.a., preset je střed 8 %.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-investment-preset="4"
+                      aria-describedby="presetTooltipBond"
+                    >
+                      Dluhopisy
+                    </button>
+                    <span id="presetTooltipBond" class="preset-tooltip" role="tooltip">
+                      Směs státních a kvalitních korporátních dluhopisů mívá v
+                      dlouhém horizontu zhruba 3-5 % p.a., proto preset 4 %.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-investment-preset="6.5"
+                      aria-describedby="presetTooltipReit"
+                    >
+                      REIT
+                    </button>
+                    <span id="presetTooltipReit" class="preset-tooltip" role="tooltip">
+                      Realitní fondy (REIT) historicky vycházely přibližně na 6-8
+                      % p.a.; preset je konzervativnější střed 6.5 %.
+                    </span>
+                  </span>
+                  <span class="preset-help">
+                    <button
+                      type="button"
+                      class="preset-btn"
+                      data-investment-preset="25"
+                      aria-describedby="presetTooltipBtc"
+                    >
+                      BTC
+                    </button>
+                    <span id="presetTooltipBtc" class="preset-tooltip" role="tooltip">
+                      Bitcoin měl od vzniku extrémně vysoký, ale velmi volatilní
+                      výnos. Pro model je preset 25 % p.a. jen orientační
+                      scénář, ne očekávaná hodnota.
+                    </span>
+                  </span>
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Poplatky investice (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="investmentFeeRate"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                  />
+                  <input
+                    id="investmentFeeRateSlider"
+                    type="range"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    data-sync-target="investmentFeeRate"
+                  />
+                </div>
+              </label>
+
+              <label>
+                Dodatečný počáteční vklad (Kč)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="extraInitialInvestment"
+                    data-step-amount="-50000"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="extraInitialInvestment"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="10000"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="extraInitialInvestment"
+                    data-step-amount="50000"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <label>
+                Dodatečný měsíční vklad (Kč / měsíc)
+                <div class="stepper">
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="manualMonthlyInvestment"
+                    data-step-amount="-500"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="manualMonthlyInvestment"
+                    class="money-input"
+                    inputmode="numeric"
+                    type="text"
+                    step="100"
+                    min="0"
+                  />
+                  <button
+                    class="step-btn"
+                    type="button"
+                    data-step-target="manualMonthlyInvestment"
+                    data-step-amount="500"
+                  >
+                    +
+                  </button>
+                </div>
+              </label>
+
+              <div class="toggle-with-help">
+                <label class="toggle">
+                  <input id="includePurchaseCapitalInRental" type="checkbox" />
+                  Započítat do nájmu i kapitál pro akontaci a pořizovací náklady
+                </label>
+                <span class="form-help">
+                  <button
+                    class="help-btn"
+                    type="button"
+                    aria-label="Vysvětlení počátečního kapitálu"
+                    aria-describedby="capitalSeedTooltip"
+                  >
+                    ?
+                  </button>
+                  <span id="capitalSeedTooltip" class="form-tooltip" role="tooltip">
+                    Zapnuto: nájemní varianta začne kapitálem, který by při koupi
+                    šel na akontaci a pořizovací náklady. Vypnuto: nájemní varianta
+                    začíná jen položkou „Dodatečný počáteční vklad“.
+                  </span>
+                </span>
+              </div>
+
+              <label class="toggle">
+                <input id="investDifference" type="checkbox" />
+                Investovat měsíční rozdíl mezi vlastním bydlením a nájmem
+              </label>
+            </div>
+          </div>
+
+          <div class="group">
+            <h2 class="title-row">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 4h3v16H6zm9 0h3v16h-3zM3 8h3v8H3zm15 2h3v4h-3z"
+                />
+              </svg>
+              <span>Simulace</span>
+            </h2>
+            <div class="field-grid">
+              <label class="slider-field">
+                Horizont (roky)
+                <div class="slider-input-row">
+                  <input
+                    id="horizonYears"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="40"
+                  />
+                  <input
+                    id="horizonYearsSlider"
+                    type="range"
+                    step="1"
+                    min="1"
+                    max="40"
+                    data-sync-target="horizonYears"
+                  />
+                </div>
+              </label>
+
+              <label class="slider-field">
+                Inflace (% p.a.)
+                <div class="slider-input-row">
+                  <input
+                    id="inflationRate"
+                    type="number"
+                    step="0.1"
+                    min="-10"
+                    max="20"
+                  />
+                  <input
+                    id="inflationRateSlider"
+                    type="range"
+                    step="0.1"
+                    min="-10"
+                    max="20"
+                    data-sync-target="inflationRate"
+                  />
+                </div>
+              </label>
+
+              <label class="toggle">
+                <input id="useRealValues" type="checkbox" />
+                Zobrazit vše v dnešních cenách (po odečtení inflace)
+              </label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit">Přepočítat</button>
+            <button type="button" id="resetDefaults" class="secondary">
+              Obnovit výchozí hodnoty
+            </button>
+          </div>
+        </form>
+
+        <div class="side-column">
+          <section class="panel">
+            <h2 class="title-row">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 18h16v2H4zM6 15l3-4 3 2 4-6 2 1.2-5 7.3-3-2-2.6 3.5z" />
+              </svg>
+              <span>Výsledky</span>
+            </h2>
+            <div class="metrics">
+              <article class="metric-card">
+                <span>Měsíční splátka hypotéky</span>
+                <strong id="monthlyMortgageResult">-</strong>
+              </article>
+              <article class="metric-card series-owner">
+                <span>Čisté jmění (koupě)</span>
+                <strong id="ownerNetWorthResult">-</strong>
+              </article>
+              <article class="metric-card series-renter">
+                <span>Čisté jmění (nájem + investice)</span>
+                <strong id="renterNetWorthResult">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Rozdíl (koupě - nájem)</span>
+                <strong id="differenceResult">-</strong>
+              </article>
+              <article class="metric-card series-property">
+                <span>Hodnota bytu na konci</span>
+                <strong id="propertyValueResult">-</strong>
+              </article>
+              <article class="metric-card series-mortgage">
+                <span>Zůstatek hypotéky na konci</span>
+                <strong id="mortgageBalanceResult">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Zaplacené úroky celkem</span>
+                <strong id="interestPaidResult">-</strong>
+              </article>
+              <article class="metric-card">
+                <span>Break-even</span>
+                <strong id="breakEvenResult">-</strong>
+              </article>
+            </div>
+            <div id="summaryText" class="summary-text" aria-live="polite"></div>
+          </section>
+
+          <section class="panel scenario-panel">
+            <div class="scenario-manager">
+              <div class="scenario-head">
+                <h2 class="title-row">
+                  <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5zm3 1.7h10v2.2H7zm0 4.3h6.4v2.2H7zm0 4.3h10V18H7z"
+                    />
+                  </svg>
+                  <span>Scénáře</span>
+                </h2>
+                <p>
+                  Ulož si konfigurace jako taby, přepínej mezi nimi a sdílej
+                  aktuální stav přes URL hash.
+                </p>
+              </div>
+
+              <div id="scenarioTabs" class="scenario-tabs"></div>
+
+              <div class="scenario-actions">
+                <input
+                  id="scenarioNameInput"
+                  type="text"
+                  placeholder="Název scénáře"
+                  maxlength="42"
+                />
+                <button id="saveScenarioBtn" type="button" class="scenario-btn">
+                  Uložit scénář
+                </button>
+                <button
+                  id="deleteScenarioBtn"
+                  type="button"
+                  class="scenario-btn secondary"
+                >
+                  Smazat
+                </button>
+                <button
+                  id="copyScenarioLinkBtn"
+                  type="button"
+                  class="scenario-btn secondary"
+                >
+                  Kopírovat odkaz
+                </button>
+              </div>
+              <p id="scenarioStatus" class="scenario-status"></p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="chart-head">
+          <h2 class="title-row">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 18h18v2H3zM5 15.5l4.3-4.3 3.5 2.6 5.2-7.1 1.6 1.2-6.4 8.8-3.6-2.6-3 3z" />
+            </svg>
+            <span>Vývoj v čase (křivky)</span>
+          </h2>
+        </div>
+
+        <p class="chart-help">
+          Kliknutím na legendu zapínáš/vypínáš křivky. Najeď myší na graf:
+          tooltip ukáže detail roku a vysvětlí, která varianta je v daném čase
+          výhodnější.
+        </p>
+
+        <div class="chart-series-controls" aria-hidden="true">
+          <input id="showOwner" type="checkbox" hidden />
+          <input id="showRenter" type="checkbox" hidden />
+          <input id="showPropertyValue" type="checkbox" hidden />
+          <input id="showMortgageBalance" type="checkbox" hidden />
+          <input id="showRent" type="checkbox" hidden />
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="comparisonChart" height="380"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" hidden></div>
+        </div>
+
+        <div class="legend">
+          <button
+            type="button"
+            class="legend-item owner"
+            data-toggle-target="showOwner"
+            data-series-key="owner"
+            aria-pressed="true"
+          >
+            <svg class="legend-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 18h18v2H3zM5 15.5l4.3-4.3 3.5 2.6 5.2-7.1 1.6 1.2-6.4 8.8-3.6-2.6-3 3z" />
+            </svg>
+            Čisté jmění koupě
+          </button>
+          <button
+            type="button"
+            class="legend-item renter"
+            data-toggle-target="showRenter"
+            data-series-key="renter"
+            aria-pressed="true"
+          >
+            <svg class="legend-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5zm2.5 0v1.4h13V6.5zM6.2 13.8h3.2v1.7H6.2z" />
+            </svg>
+            Čisté jmění nájem + investice
+          </button>
+          <button
+            type="button"
+            class="legend-item property"
+            data-toggle-target="showPropertyValue"
+            data-series-key="property"
+            aria-pressed="true"
+          >
+            <svg class="legend-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 10.2 12 3l9 7.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-4.8v-6.6h-5.4V21H4.5A1.5 1.5 0 0 1 3 19.5z" />
+            </svg>
+            Hodnota bytu
+          </button>
+          <button
+            type="button"
+            class="legend-item mortgage"
+            data-toggle-target="showMortgageBalance"
+            data-series-key="mortgage"
+            aria-pressed="false"
+          >
+            <svg class="legend-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 3h10l4 4v14H5zm8 1.8V8h3.2zM8 11h8v1.8H8zm0 4h8v1.8H8z" />
+            </svg>
+            Zůstatek hypotéky
+          </button>
+          <button
+            type="button"
+            class="legend-item rent"
+            data-toggle-target="showRent"
+            data-series-key="rent"
+            aria-pressed="true"
+          >
+            <svg class="legend-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5a4 4 0 1 1 6.9 2.8l4.2 4.2-1.4 1.4-1.2-1.2-1.5 1.5 1.2 1.2-1.4 1.4-1.2-1.2-2.3 2.3H8v-3.6l2.3-2.3-1.2-1.2 1.4-1.4 1.2 1.2 1.5-1.5-1.2-1.2A4 4 0 0 1 8 5" />
+            </svg>
+            Aktuální nájemné
+          </button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="title-row">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1m1 4v2h14V8zm0 4v2h5v-2zm7 0v2h7v-2z"
+            />
+          </svg>
+          <span>Roční přehled</span>
+        </h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rok</th>
+                <th class="col-owner">Čisté jmění koupě</th>
+                <th class="col-renter">Čisté jmění nájem + investice</th>
+                <th class="col-property">Hodnota bytu</th>
+                <th class="col-mortgage">Zůstatek hypotéky</th>
+              </tr>
+            </thead>
+            <tbody id="yearlyBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

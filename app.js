@@ -46,6 +46,43 @@ const mortgageIncomeRule = {
 };
 const scenarioStorageKey = "bytulacka.savedScenarios.v1";
 const hashPrefix = "#has=";
+const hashCompactVersion = 2;
+const hashFieldAliases = {
+  purchasePrice: "pp",
+  downPayment: "dp",
+  mortgageRate: "mr",
+  mortgageYears: "my",
+  purchaseCostsPct: "pc",
+  appreciationRate: "ar",
+  maintenancePct: "mt",
+  hoaMonthly: "hm",
+  propertyTaxPct: "tx",
+  ownerInsuranceMonthly: "oi",
+  rentMonthly: "rn",
+  rentGrowthRate: "rg",
+  renterInsuranceMonthly: "ri",
+  investmentReturnRate: "vr",
+  investmentFeeRate: "vf",
+  extraInitialInvestment: "ei",
+  manualMonthlyInvestment: "mi",
+  includePurchaseCapitalInRental: "ic",
+  investDifference: "idf",
+  horizonYears: "hy",
+  inflationRate: "in",
+  useRealValues: "rv",
+  showOwner: "so",
+  showRenter: "sr",
+  showPropertyValue: "sp",
+  showMortgageBalance: "sm",
+  showRent: "sn",
+};
+const hashAliasToField = Object.entries(hashFieldAliases).reduce(
+  (output, [fieldId, alias]) => {
+    output[alias] = fieldId;
+    return output;
+  },
+  {},
+);
 
 const form = document.getElementById("calculatorForm");
 const yearlyBody = document.getElementById("yearlyBody");
@@ -394,9 +431,108 @@ function applyAppreciationPreset(button) {
   scheduleUpdate();
 }
 
+function normalizeHashNumber(value) {
+  if (!Number.isFinite(value)) return 0;
+  if (Number.isInteger(value)) return value;
+  return Number(value.toFixed(4));
+}
+
+function encodeBase64Url(text) {
+  try {
+    const binary = encodeURIComponent(text).replace(
+      /%([0-9A-F]{2})/g,
+      (_full, hex) => String.fromCharCode(Number.parseInt(hex, 16)),
+    );
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  } catch {
+    return null;
+  }
+}
+
+function decodeBase64Url(payload) {
+  if (!payload) return null;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padLength = (4 - (base64.length % 4)) % 4;
+    const padded = `${base64}${"=".repeat(padLength)}`;
+    const binary = atob(padded);
+    const percentEncoded = Array.from(binary)
+      .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`)
+      .join("");
+    return decodeURIComponent(percentEncoded);
+  } catch {
+    return null;
+  }
+}
+
+function encodeCompactHashPayload(values) {
+  const sanitized = sanitizeFormValues(values);
+  const delta = {};
+
+  fieldIds.forEach((fieldId) => {
+    const currentValue = sanitized[fieldId];
+    const defaultValue = defaults[fieldId];
+    if (isBooleanDefault(fieldId)) {
+      if (Boolean(currentValue) !== Boolean(defaultValue)) {
+        delta[hashFieldAliases[fieldId] || fieldId] = currentValue ? 1 : 0;
+      }
+      return;
+    }
+
+    const normalizedCurrent = normalizeHashNumber(Number(currentValue));
+    const normalizedDefault = normalizeHashNumber(Number(defaultValue));
+    if (normalizedCurrent !== normalizedDefault) {
+      delta[hashFieldAliases[fieldId] || fieldId] = normalizedCurrent;
+    }
+  });
+
+  const compactPayload = {
+    v: hashCompactVersion,
+    d: delta,
+  };
+  const encoded = encodeBase64Url(JSON.stringify(compactPayload));
+  if (!encoded) return null;
+  return encoded;
+}
+
+function decodeCompactHashPayload(rawPayload) {
+  const decodedText = decodeBase64Url(rawPayload);
+  if (!decodedText) return null;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(decodedText);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  if (parsed.v !== hashCompactVersion) return null;
+
+  const delta = parsed.d && typeof parsed.d === "object" ? parsed.d : {};
+  const merged = { ...defaults };
+  Object.entries(delta).forEach(([aliasOrFieldId, rawValue]) => {
+    const fieldId = hashAliasToField[aliasOrFieldId] || aliasOrFieldId;
+    if (!Object.prototype.hasOwnProperty.call(defaults, fieldId)) return;
+    if (isBooleanDefault(fieldId)) {
+      merged[fieldId] = Boolean(rawValue);
+      return;
+    }
+    merged[fieldId] = parseLooseNumber(rawValue);
+  });
+
+  return sanitizeFormValues(merged);
+}
+
 function encodeValuesForHash(values) {
-  const encodedPayload = encodeURIComponent(JSON.stringify(sanitizeFormValues(values)));
-  return `${hashPrefix}${encodedPayload}`;
+  const encodedCompactPayload = encodeCompactHashPayload(values);
+  if (encodedCompactPayload) {
+    return `${hashPrefix}${encodedCompactPayload}`;
+  }
+
+  const fallbackEncodedPayload = encodeURIComponent(
+    JSON.stringify(sanitizeFormValues(values)),
+  );
+  return `${hashPrefix}${fallbackEncodedPayload}`;
 }
 
 function decodeValuesFromHash(hashValue) {
@@ -409,6 +545,9 @@ function decodeValuesFromHash(hashValue) {
       : null;
 
   if (!rawPayload) return null;
+
+  const decodedCompact = decodeCompactHashPayload(rawPayload);
+  if (decodedCompact) return decodedCompact;
 
   try {
     return sanitizeFormValues(JSON.parse(decodeURIComponent(rawPayload)));
@@ -653,7 +792,7 @@ function simulate(inputs) {
 }
 
 function formatCurrency(value) {
-  return currencyFormatter.format(value);
+  return toTypographicMinus(currencyFormatter.format(value));
 }
 
 function formatSignedCurrency(value) {
@@ -662,7 +801,11 @@ function formatSignedCurrency(value) {
 }
 
 function formatPercent(value) {
-  return `${percentFormatter.format(value)} %`;
+  return `${toTypographicMinus(percentFormatter.format(value))} %`;
+}
+
+function toTypographicMinus(text) {
+  return String(text).replace(/-/g, "−");
 }
 
 function getDecimalFormatter(fractionDigits = 1) {
@@ -680,7 +823,7 @@ function getDecimalFormatter(fractionDigits = 1) {
 }
 
 function formatDecimal(value, fractionDigits = 1) {
-  return getDecimalFormatter(fractionDigits).format(value);
+  return toTypographicMinus(getDecimalFormatter(fractionDigits).format(value));
 }
 
 function formatYearLabel(value) {

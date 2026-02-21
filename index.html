@@ -249,107 +249,112 @@
                 </div>
               </label>
 
-              <label class="slider-field">
-                Údržba bytu (% p.a.)
-                <div class="slider-input-row">
-                  <input
-                    id="maintenancePct"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="8"
-                  />
-                  <input
-                    id="maintenancePctSlider"
-                    type="range"
-                    step="0.1"
-                    min="0"
-                    max="8"
-                    data-sync-target="maintenancePct"
-                  />
-                </div>
-              </label>
+              <details class="advanced-fields">
+                <summary>Pokročilé náklady bytu</summary>
+                <div class="field-grid advanced-grid">
+                  <label class="slider-field">
+                    Údržba bytu (% p.a.)
+                    <div class="slider-input-row">
+                      <input
+                        id="maintenancePct"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="8"
+                      />
+                      <input
+                        id="maintenancePctSlider"
+                        type="range"
+                        step="0.1"
+                        min="0"
+                        max="8"
+                        data-sync-target="maintenancePct"
+                      />
+                    </div>
+                  </label>
 
-              <label>
-                Měsíční fond/služby SVJ (Kč)
-                <div class="stepper">
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="hoaMonthly"
-                    data-step-amount="-500"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="hoaMonthly"
-                    class="money-input"
-                    inputmode="numeric"
-                    type="text"
-                    step="100"
-                    min="0"
-                  />
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="hoaMonthly"
-                    data-step-amount="500"
-                  >
-                    +
-                  </button>
-                </div>
-              </label>
+                  <label>
+                    Měsíční fond/služby SVJ (Kč)
+                    <div class="stepper">
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="hoaMonthly"
+                        data-step-amount="-500"
+                      >
+                        -
+                      </button>
+                      <input
+                        id="hoaMonthly"
+                        class="money-input"
+                        inputmode="numeric"
+                        type="text"
+                        step="100"
+                        min="0"
+                      />
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="hoaMonthly"
+                        data-step-amount="500"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
 
-              <label class="slider-field">
-                Daň z nemovitosti (% p.a.)
-                <div class="slider-input-row">
-                  <input
-                    id="propertyTaxPct"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1.5"
-                  />
-                  <input
-                    id="propertyTaxPctSlider"
-                    type="range"
-                    step="0.01"
-                    min="0"
-                    max="1.5"
-                    data-sync-target="propertyTaxPct"
-                  />
-                </div>
-              </label>
+                  <label class="slider-field">
+                    Daň z nemovitosti (% p.a.)
+                    <div class="slider-input-row">
+                      <input
+                        id="propertyTaxPct"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="1.5"
+                      />
+                      <input
+                        id="propertyTaxPctSlider"
+                        type="range"
+                        step="0.01"
+                        min="0"
+                        max="1.5"
+                        data-sync-target="propertyTaxPct"
+                      />
+                    </div>
+                  </label>
 
-              <label>
-                Pojištění nemovitosti (Kč / měsíc)
-                <div class="stepper">
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="ownerInsuranceMonthly"
-                    data-step-amount="-100"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="ownerInsuranceMonthly"
-                    class="money-input"
-                    inputmode="numeric"
-                    type="text"
-                    step="100"
-                    min="0"
-                  />
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="ownerInsuranceMonthly"
-                    data-step-amount="100"
-                  >
-                    +
-                  </button>
+                  <label>
+                    Pojištění nemovitosti (Kč / měsíc)
+                    <div class="stepper">
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="ownerInsuranceMonthly"
+                        data-step-amount="-100"
+                      >
+                        -
+                      </button>
+                      <input
+                        id="ownerInsuranceMonthly"
+                        class="money-input"
+                        inputmode="numeric"
+                        type="text"
+                        step="100"
+                        min="0"
+                      />
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="ownerInsuranceMonthly"
+                        data-step-amount="100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
                 </div>
-              </label>
+              </details>
             </div>
           </div>
 
@@ -411,36 +416,6 @@
                     max="20"
                     data-sync-target="rentGrowthRate"
                   />
-                </div>
-              </label>
-
-              <label>
-                Pojištění nájemníka (Kč / měsíc)
-                <div class="stepper">
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="renterInsuranceMonthly"
-                    data-step-amount="-100"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="renterInsuranceMonthly"
-                    class="money-input"
-                    inputmode="numeric"
-                    type="text"
-                    step="100"
-                    min="0"
-                  />
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="renterInsuranceMonthly"
-                    data-step-amount="100"
-                  >
-                    +
-                  </button>
                 </div>
               </label>
 
@@ -559,66 +534,6 @@
                 </div>
               </label>
 
-              <label>
-                Dodatečný počáteční vklad (Kč)
-                <div class="stepper">
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="extraInitialInvestment"
-                    data-step-amount="-50000"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="extraInitialInvestment"
-                    class="money-input"
-                    inputmode="numeric"
-                    type="text"
-                    step="10000"
-                    min="0"
-                  />
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="extraInitialInvestment"
-                    data-step-amount="50000"
-                  >
-                    +
-                  </button>
-                </div>
-              </label>
-
-              <label>
-                Dodatečný měsíční vklad (Kč / měsíc)
-                <div class="stepper">
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="manualMonthlyInvestment"
-                    data-step-amount="-500"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="manualMonthlyInvestment"
-                    class="money-input"
-                    inputmode="numeric"
-                    type="text"
-                    step="100"
-                    min="0"
-                  />
-                  <button
-                    class="step-btn"
-                    type="button"
-                    data-step-target="manualMonthlyInvestment"
-                    data-step-amount="500"
-                  >
-                    +
-                  </button>
-                </div>
-              </label>
-
               <div class="toggle-with-help">
                 <label class="toggle">
                   <input id="includePurchaseCapitalInRental" type="checkbox" />
@@ -645,6 +560,101 @@
                 <input id="investDifference" type="checkbox" />
                 Investovat měsíční rozdíl mezi vlastním bydlením a nájmem
               </label>
+
+              <details class="advanced-fields">
+                <summary>Pokročilé vstupy portfolia</summary>
+                <div class="field-grid advanced-grid">
+                  <label>
+                    Pojištění nájemníka (Kč / měsíc)
+                    <div class="stepper">
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="renterInsuranceMonthly"
+                        data-step-amount="-100"
+                      >
+                        -
+                      </button>
+                      <input
+                        id="renterInsuranceMonthly"
+                        class="money-input"
+                        inputmode="numeric"
+                        type="text"
+                        step="100"
+                        min="0"
+                      />
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="renterInsuranceMonthly"
+                        data-step-amount="100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
+
+                  <label>
+                    Dodatečný počáteční vklad (Kč)
+                    <div class="stepper">
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="extraInitialInvestment"
+                        data-step-amount="-50000"
+                      >
+                        -
+                      </button>
+                      <input
+                        id="extraInitialInvestment"
+                        class="money-input"
+                        inputmode="numeric"
+                        type="text"
+                        step="10000"
+                        min="0"
+                      />
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="extraInitialInvestment"
+                        data-step-amount="50000"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
+
+                  <label>
+                    Dodatečný měsíční vklad (Kč / měsíc)
+                    <div class="stepper">
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="manualMonthlyInvestment"
+                        data-step-amount="-500"
+                      >
+                        -
+                      </button>
+                      <input
+                        id="manualMonthlyInvestment"
+                        class="money-input"
+                        inputmode="numeric"
+                        type="text"
+                        step="100"
+                        min="0"
+                      />
+                      <button
+                        class="step-btn"
+                        type="button"
+                        data-step-target="manualMonthlyInvestment"
+                        data-step-amount="500"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -928,6 +938,16 @@
         </div>
       </section>
     </main>
+
+    <aside id="stickyMiniChart" class="sticky-mini-chart" hidden>
+      <div class="sticky-mini-head">
+        <span>Živý náhled grafu</span>
+        <button id="jumpToChartBtn" type="button" class="sticky-mini-btn">
+          Otevřít velký graf
+        </button>
+      </div>
+      <canvas id="stickyMiniCanvas" height="132" aria-hidden="true"></canvas>
+    </aside>
 
     <script src="./app.js"></script>
   </body>

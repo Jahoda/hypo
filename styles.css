@@ -228,6 +228,43 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.advanced-fields {
+  grid-column: 1 / -1;
+  border: 1px dashed #c5ddd4;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfffd, #f4fbf8);
+  padding: 8px 10px 10px;
+}
+
+.advanced-fields > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #27544b;
+  list-style: none;
+}
+
+.advanced-fields > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-fields > summary::before {
+  content: "+";
+  display: inline-flex;
+  width: 16px;
+  margin-right: 6px;
+  justify-content: center;
+  color: #0f766e;
+}
+
+.advanced-fields[open] > summary::before {
+  content: "-";
+}
+
+.advanced-grid {
+  margin-top: 10px;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -875,6 +912,65 @@ canvas {
   opacity: 0.58;
 }
 
+.sticky-mini-chart {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 24px));
+  border: 1px solid rgba(33, 78, 72, 0.28);
+  border-radius: 14px;
+  background: rgba(248, 254, 251, 0.97);
+  box-shadow: 0 10px 30px rgba(18, 47, 43, 0.2);
+  backdrop-filter: blur(8px);
+  z-index: 40;
+  padding: 8px 8px 10px;
+}
+
+.sticky-mini-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.sticky-mini-head span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #21463f;
+}
+
+.sticky-mini-btn {
+  border: 1px solid #b9d8cd;
+  border-radius: 999px;
+  background: #eaf7f2;
+  color: #1c554a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.sticky-mini-btn:hover {
+  background: #d9eee6;
+}
+
+.sticky-mini-btn:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+#stickyMiniCanvas {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border-radius: 10px;
+  border: 1px solid rgba(33, 78, 72, 0.18);
+  background: linear-gradient(180deg, #ffffff, #f6fcfa);
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -961,5 +1057,15 @@ tbody td.col-mortgage {
 
   canvas {
     height: 320px;
+  }
+
+  .sticky-mini-chart {
+    width: calc(100vw - 12px);
+    bottom: 6px;
+    padding: 6px 6px 8px;
+  }
+
+  #stickyMiniCanvas {
+    height: 108px;
   }
 }

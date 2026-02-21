@@ -41,8 +41,12 @@ const hashPrefix = "#has=";
 
 const form = document.getElementById("calculatorForm");
 const yearlyBody = document.getElementById("yearlyBody");
+const chartPanel = document.querySelector(".chart-panel");
 const chartCanvas = document.getElementById("comparisonChart");
 const chartTooltip = document.getElementById("chartTooltip");
+const stickyMiniChart = document.getElementById("stickyMiniChart");
+const stickyMiniCanvas = document.getElementById("stickyMiniCanvas");
+const jumpToChartBtn = document.getElementById("jumpToChartBtn");
 const scenarioTabs = document.getElementById("scenarioTabs");
 const scenarioNameInput = document.getElementById("scenarioNameInput");
 const saveScenarioBtn = document.getElementById("saveScenarioBtn");
@@ -1296,6 +1300,48 @@ function hideChartTooltip() {
   chartTooltip.hidden = true;
 }
 
+function shouldShowStickyMiniChart() {
+  if (!chartPanel) return false;
+  const rect = chartPanel.getBoundingClientRect();
+  return rect.top > window.innerHeight - 8;
+}
+
+function updateStickyMiniChartVisibility() {
+  if (!stickyMiniChart) return;
+  const shouldShow = shouldShowStickyMiniChart() && Boolean(lastSimulation);
+  stickyMiniChart.hidden = !shouldShow;
+}
+
+function renderStickyMiniChartFromMain() {
+  if (!stickyMiniCanvas) return;
+  if (!chartCanvas.width || !chartCanvas.height) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = stickyMiniCanvas.getBoundingClientRect();
+  const width = Math.max(220, rect.width || 320);
+  const height = Math.max(96, rect.height || 132);
+
+  stickyMiniCanvas.width = Math.round(width * dpr);
+  stickyMiniCanvas.height = Math.round(height * dpr);
+
+  const ctx = stickyMiniCanvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const pad = 2;
+  ctx.drawImage(
+    chartCanvas,
+    0,
+    0,
+    chartCanvas.width,
+    chartCanvas.height,
+    pad,
+    pad,
+    width - pad * 2,
+    height - pad * 2,
+  );
+}
+
 function getHoveredGroupIndex(x, y) {
   const { layout } = chartState;
   if (!layout) return null;
@@ -1448,9 +1494,11 @@ function updateFromInputs() {
   updateResults(simulation);
   updateYearlyTable(simulation);
   drawChart(simulation);
+  renderStickyMiniChartFromMain();
 
   lastSimulation = simulation;
   updateHashFromInputs();
+  updateStickyMiniChartVisibility();
 }
 
 function scheduleUpdate() {
@@ -1635,14 +1683,23 @@ if (copyScenarioLinkBtn) {
     copyCurrentLinkWithHash();
   });
 }
+if (jumpToChartBtn && chartPanel) {
+  jumpToChartBtn.addEventListener("click", () => {
+    chartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
 
 chartCanvas.addEventListener("mousemove", updateChartHoverFromEvent);
 chartCanvas.addEventListener("mouseleave", clearChartHover);
 
 window.addEventListener("resize", () => {
-  if (!lastSimulation) return;
-  drawChart(lastSimulation);
+  if (lastSimulation) {
+    drawChart(lastSimulation);
+    renderStickyMiniChartFromMain();
+  }
+  updateStickyMiniChartVisibility();
 });
+window.addEventListener("scroll", updateStickyMiniChartVisibility, { passive: true });
 window.addEventListener("blur", stopStepperHold);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
